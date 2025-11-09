@@ -34,6 +34,7 @@ const app = new Elysia()
 			},
 		},
 	})
+	.get("/", "Hello blog")
 	.get(
 		"/blog",
 		async (c) => {
