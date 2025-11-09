@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="stylesheet" href="./output.css" />
+		<title>Ozan Arslan - Admin</title>
+	</head>
+	<body class="dark">
+		<h1 class="pt-8 text-center text-7xl font-black">Admin</h1>
+
+		<div class="mx-auto max-w-md">
+			<input class="w-full" type="password" id="password" placeholder="Enter admin password" autofocus />
+		</div>
+
+		<div class="flex justify-between gap-8 px-8">
+			<div class="flex-1">
+				<form id="create" class="flex flex-col gap-4 pt-8">
+					<h2 class="text-lg font-bold">Write blog</h2>
+					<div class="flex flex-col gap-2">
+						<label for="title">Title</label>
+						<input type="text" id="title" name="title" />
+					</div>
+					<div class="flex flex-col gap-2">
+						<label for="content">Content</label>
+						<textarea rows="8" id="content" name="content"></textarea>
+					</div>
+
+					<button type="submit">Submit</button>
+				</form>
+
+				<form id="edit" class="flex flex-col gap-4 pt-8">
+					<h2 class="text-lg font-bold">Edit blog</h2>
+					<div class="flex flex-col gap-2">
+						<label for="edit-id">ID</label>
+						<input type="number" id="edit-id" name="id" readonly />
+					</div>
+					<div class="flex flex-col gap-2">
+						<label for="edit-title">Title</label>
+						<input type="text" id="edit-title" name="title" />
+					</div>
+					<div class="flex flex-col gap-2">
+						<label for="edit-content">Content</label>
+						<textarea rows="8" id="edit-content" name="content"></textarea>
+					</div>
+
+					<button type="submit">Submit</button>
+				</form>
+			</div>
+
+			<div class="flex-1">
+				<div class="flex flex-col gap-4 pt-8">
+					<h2 class="text-lg font-bold">All Posts</h2>
+					<div id="blog"></div>
+				</div>
+			</div>
+		</div>
+	</body>
+
+	<script>
+		function getAuthHeaders() {
+			const password = document.getElementById("password").value.trim();
+			if (!password) {
+				throw new Error("Please enter admin password first");
+			}
+			return {
+				"Content-Type": "application/json",
+				Accept: "application/json",
+				"X-Password": password,
+			};
+		}
+
+		async function main() {
+			try {
+				const res = await fetch("/api/blog", {
+					headers: {
+						"Content-Type": "application/json",
+						Accept: "application/json",
+					},
+				});
+				if (!res.ok) {
+					throw new Error(`Failed to load posts: ${res.status}`);
+				}
+
+				const data = await res.json();
+
+				document.getElementById("blog").innerHTML = data
+					.map(
+						(post) => `
+				<div class="flex flex-col gap-2 pb-8">
+					<h3 data-id="${post.id}" data-field="title" class="text-lg font-bold">${post.title}</h3>
+					<p data-id="${post.id}" data-field="content" class="max-h-20 overflow-hidden">${post.content}</p>
+					<p>...</p>
+					<button data-id="${post.id}" data-action="edit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Edit</button>
+					<button data-id="${post.id}" data-action="delete" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Delete</button>
+				</div>
+			`,
+					)
+					.join("");
+
+				attachPostEventListeners();
+			} catch (error) {
+				alert(error.message);
+				console.error("Error loading posts:", error);
+			}
+		}
+
+		function attachPostEventListeners() {
+			document.querySelectorAll('[data-action="edit"]').forEach((button) => {
+				button.addEventListener("click", async () => {
+					const id = button.getAttribute("data-id");
+					const title = document.querySelector(`[data-id="${id}"][data-field="title"]`).textContent;
+					const content = document.querySelector(`[data-id="${id}"][data-field="content"]`).textContent;
+					document.getElementById("edit-id").value = id;
+					document.getElementById("edit-title").value = title;
+					document.getElementById("edit-content").value = content;
+				});
+			});
+
+			document.querySelectorAll('[data-action="delete"]').forEach((button) => {
+				button.addEventListener("click", async () => {
+					if (!confirm("Are you sure you want to delete this post?")) return;
+
+					try {
+						const id = button.getAttribute("data-id");
+						const headers = getAuthHeaders();
+
+						const response = await fetch("/api/blog", {
+							method: "DELETE",
+							body: JSON.stringify({ id: parseInt(id) }),
+							headers: headers,
+						});
+
+						if (!response.ok) {
+							throw new Error(`Delete failed: ${response.status}`);
+						}
+
+						main();
+					} catch (error) {
+						alert(error.message);
+						console.error("Delete error:", error);
+					}
+				});
+			});
+		}
+
+		const createForm = document.getElementById("create");
+		createForm.addEventListener("submit", async (e) => {
+			e.preventDefault();
+
+			try {
+				const formData = new FormData(e.currentTarget);
+				const title = formData.get("title");
+				const content = formData.get("content");
+
+				if (!title || !content) {
+					alert("Please fill in both title and content");
+					return;
+				}
+
+				const headers = getAuthHeaders();
+
+				const response = await fetch("/api/blog", {
+					method: "POST",
+					body: JSON.stringify({ title, content }),
+					headers: headers,
+				});
+
+				if (!response.ok) {
+					throw new Error(`Create failed: ${response.status}`);
+				}
+
+				createForm.reset();
+				main();
+				alert("Post created successfully!");
+			} catch (error) {
+				alert(error.message);
+				console.error("Create error:", error);
+			}
+		});
+
+		const editForm = document.getElementById("edit");
+
+		editForm.addEventListener("submit", async (e) => {
+			e.preventDefault();
+
+			try {
+				const formData = new FormData(e.currentTarget);
+				const id = formData.get("id");
+				const title = formData.get("title");
+				const content = formData.get("content");
+
+				if (!id || !title || !content) {
+					alert("Please fill in all fields");
+					return;
+				}
+
+				const headers = getAuthHeaders();
+
+				const response = await fetch("/api/blog/edit", {
+					method: "POST",
+					body: JSON.stringify({
+						id: parseInt(id),
+						title,
+						content,
+					}),
+					headers: headers,
+				});
+
+				if (!response.ok) {
+					throw new Error(`Update failed: ${response.status}`);
+				}
+
+				editForm.reset();
+				main();
+				alert("Post updated successfully!");
+			} catch (error) {
+				alert(error.message);
+				console.error("Update error:", error);
+			}
+		});
+
+		main();
+	</script>
+</html>
