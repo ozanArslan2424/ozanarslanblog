@@ -1,4 +1,3 @@
-import { Database } from "bun:sqlite";
 import type {
 	BlogCreateBodyType,
 	BlogDeleteBodyType,
@@ -6,9 +5,10 @@ import type {
 	BlogPostType,
 	BlogUpdateBodyType,
 } from "@/schemas/blog.schemas";
+import type { DatabaseService } from "@/services/database.service";
 
 export class BlogService {
-	constructor(private readonly db: Database) {
+	constructor(private readonly db: DatabaseService) {
 		this.createTable();
 	}
 

@@ -1,5 +1,5 @@
 import { Elysia } from "elysia";
-import { getErrorResult } from "@/lib/get-error-result";
+import { getErrorResult, HTTPError } from "@/lib/get-error-result";
 import { AdminService } from "@/services/admin.service";
 import {
 	BlogCreateBodySchema,
@@ -8,13 +8,13 @@ import {
 	BlogPostSchema,
 	BlogUpdateBodySchema,
 } from "@/schemas/blog.schemas";
-import { Database } from "bun:sqlite";
 import { BlogService } from "@/services/blog.service";
 import { cors } from "@elysiajs/cors";
 import { ConfigService } from "@/services/config.service";
+import { DatabaseService } from "@/services/database.service";
 
 const config = new ConfigService();
-const db = new Database(config.getDatabaseUrl());
+const db = new DatabaseService(config.getDatabaseUrl());
 const adminService = new AdminService(config.adminSecret);
 const blogService = new BlogService(db);
 
@@ -25,7 +25,7 @@ const app = new Elysia()
 			methods: ["GET"],
 		}),
 	)
-	.derive(() => ({ adminService, blogService }))
+	.derive(() => ({ db, adminService, blogService }))
 	.macro({
 		admin: {
 			resolve: async (c) => {
@@ -35,6 +35,13 @@ const app = new Elysia()
 		},
 	})
 	.get("/", "Hello blog")
+	.get("/health", async (c) => {
+		const dbHealth = await c.db.checkHealth();
+		if (!dbHealth) {
+			throw new HTTPError("DB file not found", 500);
+		}
+		return `Healthy at ${config.port}`;
+	})
 	.get(
 		"/blog",
 		async (c) => {
