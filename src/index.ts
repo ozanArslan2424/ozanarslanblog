@@ -20,6 +20,7 @@ function api(req: Bun.BunRequest<"/api/*">) {
 serve({
 	port,
 	routes: {
+		"/": () => Response.json({ status: "ok" }),
 		"/api/*": (req) => api(req),
 		"/admin": admin,
 	},
