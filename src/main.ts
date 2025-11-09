@@ -35,7 +35,7 @@ const app = new Elysia()
 		},
 	})
 	.get("/", "Hello blog")
-	.head("/health", async (c) => {
+	.all("/health", async (c) => {
 		const dbHealth = await c.db.checkHealth();
 		if (!dbHealth) {
 			throw new HTTPError("DB file not found", 500);
